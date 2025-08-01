@@ -11,7 +11,7 @@ A research project comparing classical machine learning and deep learning approa
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/yuckyman/HRM-EEG.git
 cd python
 
 # Install dependencies (using uv for fast dependency resolution)
