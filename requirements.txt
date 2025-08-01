@@ -1,0 +1,12 @@
+scikit-learn
+numpy
+matplotlib
+mne
+einops
+scipy
+psutil
+torch
+torchvision
+tqdm
+requests
+seaborn
