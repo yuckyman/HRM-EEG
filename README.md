@@ -25,6 +25,12 @@ python attention_hierarchical_processor.py
 
 # Or run BCI Competition experiments
 python run_bci_experiment.py
+
+# Download BCI datasets (if needed)
+python utils/download_bci_dataset.py
+
+# Run tests
+python tests/test_attention.py
 ```
 
 ## Requirements
@@ -34,6 +40,33 @@ python run_bci_experiment.py
 - scikit-learn
 - MNE-Python
 - Other dependencies are listed in `pyproject.toml`
+
+## Experiments
+
+This project contains several types of experiments:
+
+### 1. **Synthetic Data Experiments** (`eeg_hierarchical_processor.py`)
+- Tests hierarchical processing on synthetic EEG-like data
+- Compares classical ML vs deep learning approaches
+- Includes lesion studies to test hierarchical integration
+- **Run with:** `python eeg_hierarchical_processor.py`
+
+### 2. **Attention-Based Processing** (`attention_hierarchical_processor.py`)
+- Extends the framework with temporal and spatial attention mechanisms
+- Tests attention patterns in hierarchical EEG processing
+- Generates attention visualizations
+- **Run with:** `python attention_hierarchical_processor.py`
+
+### 3. **BCI Competition Experiments** (`run_bci_experiment.py`)
+- Applies the framework to real BCI Competition IV data
+- Multi-class motor imagery classification
+- Tests on actual brain-computer interface data
+- **Run with:** `python run_bci_experiment.py`
+
+### 4. **Data Download & Exploration**
+- Download BCI datasets: `python utils/download_bci_dataset.py`
+- Explore downloaded data: `python utils/explore_bci_data.py`
+- Run all tests: `python tests/test_attention.py`
 
 ## Table of Contents
 
@@ -49,35 +82,58 @@ python run_bci_experiment.py
 
 ## Overview
 
-The script's main goal is to build and compare different machine learning models for a binary classification task on EEG-like data. It specifically compares two main approaches:
+This project implements a novel hierarchical predictive processing framework for EEG analysis that demonstrates how the brain might use both fast local dynamics and slow contextual information for perception and prediction.
+
+### Key Research Contributions
+
+1. **Hierarchical Processing Framework**: Implements a two-tier hierarchical model that processes both fast local features and slow contextual information
+2. **Attention Mechanisms**: Extends the framework with temporal and spatial attention for interpretable brain-computer interface applications
+3. **Comprehensive Model Comparison**: Rigorous evaluation framework comparing classical ML vs deep learning approaches
+4. **Real-World Validation**: Tests on actual BCI Competition IV datasets for motor imagery classification
+5. **Lesion Studies**: Neuroscientific approach to understanding hierarchical integration through ablation studies
+
+The framework specifically compares two main approaches:
 
 ## Project Structure
 
 ```
 python/
-├── eeg_hierarchical_processor.py    # Main experiment script
-├── attention_hierarchical_processor.py  # Attention-based processing
-├── attention_modules.py              # Attention mechanism implementations
-├── run_bci_experiment.py            # BCI Competition experiments
-├── config.py                        # Configuration management
-├── utils/                           # Utility functions
-│   ├── download_bci_dataset.py      # BCI data downloader
-│   ├── download_all_datasets.py     # Batch dataset downloader
-│   └── explore_bci_data.py         # Data exploration utilities
-├── debug/                           # Debugging scripts
-│   ├── debug_attention.py           # Attention model debugging
-│   └── debug_attention_processed.py # Processed data debugging
-├── tests/                           # Test scripts
-│   ├── test_attention.py            # Attention module tests
-│   └── test_organization.py         # Project structure tests
-├── archive/                         # Legacy/older versions
-│   ├── eeg_sim.py                   # Simple EEG simulation
-│   ├── hrm_sim-demo.py              # Demo script
-│   └── public-eeg-datasets.md       # Dataset documentation
-├── hierarchical_eeg_progress.md     # Development notes
-├── pyproject.toml                   # Project configuration
-├── requirements.txt                  # Python dependencies
-└── README.md                        # This file
+├── 📁 Core Research Files
+│   ├── eeg_hierarchical_processor.py      # Main hierarchical processing framework
+│   ├── attention_hierarchical_processor.py # Attention-based EEG processing
+│   ├── attention_modules.py               # Attention mechanism implementations
+│   ├── run_bci_experiment.py             # BCI Competition IV experiments
+│   └── config.py                         # Configuration management
+│
+├── 📁 Utils (utils/)
+│   ├── download_bci_dataset.py           # BCI Competition data downloader
+│   ├── download_all_datasets.py          # Batch dataset downloader
+│   └── explore_bci_data.py              # Data exploration utilities
+│
+├── 📁 Debug (debug/)
+│   ├── debug_attention.py                # Attention model debugging
+│   └── debug_attention_processed.py      # Processed data debugging
+│
+├── 📁 Tests (tests/)
+│   ├── test_attention.py                 # Attention module unit tests
+│   └── test_organization.py              # Project structure tests
+│
+├── 📁 Archive (archive/)
+│   ├── eeg_sim.py                       # Simple EEG simulation (legacy)
+│   ├── hrm_sim-demo.py                  # Demo script (legacy)
+│   └── public-eeg-datasets.md           # Dataset documentation
+│
+├── 📁 Data & Results
+│   ├── data/                            # Downloaded datasets
+│   ├── results/                         # Experiment results
+│   ├── logs/                           # Log files
+│   └── attention_plots/                 # Attention visualization plots
+│
+├── 📄 Documentation
+│   ├── hierarchical_eeg_progress.md     # Development notes and progress
+│   ├── pyproject.toml                   # Project configuration
+│   ├── requirements.txt                 # Python dependencies
+│   └── README.md                       # This file
 ```
 
 1. A **classical machine learning approach** using Logistic Regression in a two-step hierarchical process.
@@ -193,8 +249,16 @@ The `if __name__ == "__main__":` block executes the `main()` function, which orc
 
 In summary, this script is a well-designed research tool. It sets up a clear problem (classifying a signal with hierarchical structure), implements two different solutions (one classical, one deep learning), and provides a robust framework for rigorously comparing them on multiple criteria.
 
-## Contributing
+## Development Workflow
 
+### For Researchers
+1. **Start with synthetic data**: Run `eeg_hierarchical_processor.py` to understand the framework
+2. **Explore attention mechanisms**: Run `attention_hierarchical_processor.py` for attention-based processing
+3. **Test on real data**: Use `run_bci_experiment.py` for BCI Competition experiments
+4. **Debug issues**: Use scripts in `debug/` for troubleshooting
+5. **Run tests**: Use scripts in `tests/` for validation
+
+### For Contributors
 This is a research project. If you'd like to contribute:
 
 1. Fork the repository
