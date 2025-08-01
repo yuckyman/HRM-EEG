@@ -106,10 +106,22 @@ def process_bci_trials_for_attention(trial_data, labels, processor):
     all_X_slow = []
     all_y = []
     
+    # Find the best channel (highest variance)
+    print(f"  Finding best channel...")
+    channel_variances = []
+    for ch in range(trial_data.shape[1]):  # For each channel
+        channel_data = trial_data[:, ch, :]  # (trials, timepoints)
+        variance = channel_data.var()
+        channel_variances.append(variance)
+        print(f"    Channel {ch}: variance = {variance:.8f}")
+    
+    best_channel = np.argmax(channel_variances)
+    print(f"  Best channel: {best_channel} (variance = {channel_variances[best_channel]:.8f})")
+    
     for i, (trial, label) in enumerate(zip(trial_data, labels)):
         # trial shape: (channels, timepoints)
-        # Use first channel for now (can be extended to multi-channel)
-        single_channel_data = trial[0, :]  # (timepoints,)
+        # Use the best channel instead of first channel
+        single_channel_data = trial[best_channel, :]  # (timepoints,)
         
         # Check channel data quality
         if single_channel_data.std() < 1e-6:
@@ -161,7 +173,7 @@ def run_attention_bci_experiment():
     bci_dir = BCI_DATA_DIR / "dataset2a"
     
     if not bci_dir.exists():
-        print("❌ BCI data not found. Please run download_bci_dataset.py first.")
+        print("❌ BCI data not found. Please run utils/download_bci_dataset.py first.")
         return
     
     # Find GDF files
@@ -277,7 +289,7 @@ def quick_attention_test():
     gdf_files = list(bci_dir.glob("*.gdf"))
     
     if not gdf_files:
-        print("❌ No BCI files found. Please run download_bci_dataset.py first.")
+        print("❌ No BCI files found. Please run utils/download_bci_dataset.py first.")
         return
     
     print(f"Testing with {gdf_files[0].name}...")

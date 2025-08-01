@@ -12,6 +12,7 @@ from typing import Tuple, Dict, List, Optional
 from pathlib import Path
 import json
 from datetime import datetime
+from einops import rearrange, reduce
 
 from attention_modules import (
     AttentionFastRNN, AttentionSlowRNN, AttentionIntegrationNet,
@@ -36,39 +37,14 @@ class AttentionHierarchicalProcessor:
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         
-        # Initialize attention models
-        self.fast_rnn = AttentionFastRNN(
-            input_size=3,
-            hidden_size=MODEL_CONFIG['fast_rnn']['hidden_size'],
-            num_classes=num_classes,
-            num_heads=num_heads,
-            dropout=dropout
-        )
+        # Initialize attention models with dynamic input sizes
+        # These will be updated based on actual data dimensions
+        self.fast_rnn = None
+        self.slow_rnn = None
+        self.integration_net = None
         
-        self.slow_rnn = AttentionSlowRNN(
-            input_size=2,
-            hidden_size=MODEL_CONFIG['slow_rnn']['hidden_size'],
-            num_classes=num_classes,
-            num_heads=num_heads // 2,  # Fewer heads for slow features
-            dropout=dropout
-        )
-        
-        self.integration_net = AttentionIntegrationNet(
-            fast_size=MODEL_CONFIG['fast_rnn']['hidden_size'],
-            slow_size=MODEL_CONFIG['slow_rnn']['hidden_size'],
-            hidden_size=MODEL_CONFIG['integration']['hidden_size'],
-            num_classes=num_classes,
-            num_heads=num_heads,
-            dropout=dropout
-        )
-        
-        # Optimizer and loss function
-        self.optimizer = optim.Adam([
-            {'params': self.fast_rnn.parameters()},
-            {'params': self.slow_rnn.parameters()},
-            {'params': self.integration_net.parameters()}
-        ], lr=learning_rate)
-        
+        # Optimizer and loss function (will be updated after model initialization)
+        self.optimizer = None
         self.criterion = nn.CrossEntropyLoss()
         
         # Attention visualizer
@@ -76,6 +52,44 @@ class AttentionHierarchicalProcessor:
         
         # Store attention weights for analysis
         self.attention_weights = {}
+        
+    def initialize_models(self, fast_input_size: int, slow_input_size: int):
+        """Initialize models with correct input dimensions."""
+        
+        print(f"Initializing models with fast_input_size={fast_input_size}, slow_input_size={slow_input_size}")
+        
+        # Initialize attention models with correct dimensions
+        self.fast_rnn = AttentionFastRNN(
+            input_size=fast_input_size,
+            hidden_size=MODEL_CONFIG['fast_rnn']['hidden_size'],
+            num_classes=self.num_classes,
+            num_heads=self.num_heads,
+            dropout=self.dropout
+        )
+        
+        self.slow_rnn = AttentionSlowRNN(
+            input_size=slow_input_size,
+            hidden_size=MODEL_CONFIG['slow_rnn']['hidden_size'],
+            num_classes=self.num_classes,
+            num_heads=self.num_heads // 2,  # Fewer heads for slow features
+            dropout=self.dropout
+        )
+        
+        self.integration_net = AttentionIntegrationNet(
+            fast_size=MODEL_CONFIG['fast_rnn']['hidden_size'],
+            slow_size=MODEL_CONFIG['slow_rnn']['hidden_size'],
+            hidden_size=MODEL_CONFIG['integration']['hidden_size'],
+            num_classes=self.num_classes,
+            num_heads=self.num_heads,
+            dropout=self.dropout
+        )
+        
+        # Initialize optimizer
+        self.optimizer = optim.Adam([
+            {'params': self.fast_rnn.parameters()},
+            {'params': self.slow_rnn.parameters()},
+            {'params': self.integration_net.parameters()}
+        ], lr=self.learning_rate)
         
     def extract_features(self, eeg_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -118,16 +132,20 @@ class AttentionHierarchicalProcessor:
         Prepare sequences for attention-based training.
         
         Args:
-            X_fast: Fast features
-            X_slow: Slow features
-            y: Labels
+            X_fast: Fast features of shape (n_samples, n_features)
+            X_slow: Slow features of shape (n_samples, n_features)
+            y: Labels of shape (n_samples,)
             sequence_length: Length of sequences
             
         Returns:
-            fast_sequences: Fast feature sequences
-            slow_sequences: Slow feature sequences
-            labels: Labels for sequences
+            fast_sequences: Fast feature sequences of shape (n_sequences, seq_len, n_features)
+            slow_sequences: Slow feature sequences of shape (n_sequences, seq_len, n_features)
+            labels: Labels for sequences of shape (n_sequences,)
         """
+        print(f"Preparing sequences from {len(X_fast)} samples with sequence_length={sequence_length}")
+        print(f"  Fast features shape: {X_fast.shape}")
+        print(f"  Slow features shape: {X_slow.shape}")
+        
         fast_sequences = []
         slow_sequences = []
         labels = []
@@ -141,9 +159,16 @@ class AttentionHierarchicalProcessor:
                 slow_sequences.append(slow_seq)
                 labels.append(y[i + sequence_length - 1])  # Label for last timestep
         
-        return (torch.FloatTensor(np.array(fast_sequences)),
-                torch.FloatTensor(np.array(slow_sequences)),
-                torch.LongTensor(np.array(labels)))
+        fast_sequences = torch.FloatTensor(np.array(fast_sequences))
+        slow_sequences = torch.FloatTensor(np.array(slow_sequences))
+        labels = torch.LongTensor(np.array(labels))
+        
+        print(f"  Created {len(fast_sequences)} sequences")
+        print(f"  Fast sequences shape: {fast_sequences.shape}")
+        print(f"  Slow sequences shape: {slow_sequences.shape}")
+        print(f"  Labels shape: {labels.shape}")
+        
+        return fast_sequences, slow_sequences, labels
     
     def train_attention_models(self, X_fast: np.ndarray, X_slow: np.ndarray, 
                               y: np.ndarray, test_size: float = 0.2, 
@@ -152,9 +177,9 @@ class AttentionHierarchicalProcessor:
         Train attention-based hierarchical models.
         
         Args:
-            X_fast: Fast features
-            X_slow: Slow features
-            y: Labels
+            X_fast: Fast features of shape (n_samples, n_features)
+            X_slow: Slow features of shape (n_samples, n_features)
+            y: Labels of shape (n_samples,)
             test_size: Fraction of data for testing
             num_epochs: Number of training epochs
             
@@ -162,15 +187,48 @@ class AttentionHierarchicalProcessor:
             Training results and attention weights
         """
         print(f"Training attention models with {len(X_fast)} samples...")
+        print(f"  Fast features shape: {X_fast.shape}")
+        print(f"  Slow features shape: {X_slow.shape}")
+        print(f"  Labels shape: {y.shape}")
+        print(f"  Unique labels: {np.unique(y)}")
+        print(f"  Label distribution: {np.bincount(y)}")
+        
+        # Initialize models with correct input dimensions
+        if self.fast_rnn is None:
+            self.initialize_models(X_fast.shape[1], X_slow.shape[1])
         
         # Prepare sequences
         fast_sequences, slow_sequences, labels = self.prepare_sequences(X_fast, X_slow, y)
         
-        # Split data
-        split_idx = int(len(fast_sequences) * (1 - test_size))
-        fast_train, fast_test = fast_sequences[:split_idx], fast_sequences[split_idx:]
-        slow_train, slow_test = slow_sequences[:split_idx], slow_sequences[split_idx:]
-        labels_train, labels_test = labels[:split_idx], labels[split_idx:]
+        # Stratified split to ensure all classes are represented
+        from sklearn.model_selection import train_test_split
+        
+        # Convert to numpy for sklearn
+        fast_sequences_np = fast_sequences.numpy()
+        slow_sequences_np = slow_sequences.numpy()
+        labels_np = labels.numpy()
+        
+        # Stratified split
+        (fast_train, fast_test, slow_train, slow_test, 
+         labels_train, labels_test) = train_test_split(
+            fast_sequences_np, slow_sequences_np, labels_np,
+            test_size=test_size, stratify=labels_np, random_state=42
+        )
+        
+        # Convert back to tensors
+        fast_train = torch.FloatTensor(fast_train)
+        slow_train = torch.FloatTensor(slow_train)
+        labels_train = torch.LongTensor(labels_train)
+        fast_test = torch.FloatTensor(fast_test)
+        slow_test = torch.FloatTensor(slow_test)
+        labels_test = torch.LongTensor(labels_test)
+        
+        print(f"  Training samples: {len(fast_train)}")
+        print(f"  Test samples: {len(fast_test)}")
+        print(f"  Training labels: {torch.unique(labels_train)}")
+        print(f"  Test labels: {torch.unique(labels_test)}")
+        print(f"  Training label distribution: {torch.bincount(labels_train, minlength=self.num_classes)}")
+        print(f"  Test label distribution: {torch.bincount(labels_test, minlength=self.num_classes)}")
         
         # Create data loaders
         train_dataset = torch.utils.data.TensorDataset(fast_train, slow_train, labels_train)
@@ -199,6 +257,28 @@ class AttentionHierarchicalProcessor:
                 
                 # Integration with cross-modal attention
                 integration_output, integration_attention = self.integration_net(fast_output, slow_output)
+                
+                # Debug: print shapes and values
+                if epoch == 0 and len(train_losses) == 0:
+                    print(f"  Debug shapes:")
+                    print(f"    fast_output: {fast_output.shape}")
+                    print(f"    slow_output: {slow_output.shape}")
+                    print(f"    integration_output: {integration_output.shape}")
+                    print(f"    batch_labels: {batch_labels.shape}")
+                    print(f"    integration_output range: [{integration_output.min():.3f}, {integration_output.max():.3f}]")
+                    print(f"    batch_labels unique: {torch.unique(batch_labels)}")
+                    
+                    # Debug loss calculation
+                    loss_before_reg = self.criterion(integration_output, batch_labels)
+                    print(f"    loss before regularization: {loss_before_reg:.4f}")
+                    print(f"    integration_output softmax: {torch.softmax(integration_output, dim=1).max(dim=1)[0].mean():.4f}")
+                    print(f"    predicted vs actual distribution:")
+                    pred_probs = torch.softmax(integration_output, dim=1)
+                    pred_classes = torch.argmax(integration_output, dim=1)
+                    print(f"      predicted classes: {pred_classes[:10]}")
+                    print(f"      actual classes: {batch_labels[:10]}")
+                    print(f"      predicted class counts: {torch.bincount(pred_classes, minlength=self.num_classes)}")
+                    print(f"      actual class counts: {torch.bincount(batch_labels, minlength=self.num_classes)}")
                 
                 # Loss calculation
                 loss = self.criterion(integration_output, batch_labels)
@@ -239,6 +319,26 @@ class AttentionHierarchicalProcessor:
                     _, predicted = torch.max(integration_output.data, 1)
                     total += batch_labels.size(0)
                     correct += (predicted == batch_labels).sum().item()
+                    
+                    # Debug: print predictions for first batch
+                    if len(test_accuracies) == 0:
+                        print(f"  Debug predictions:")
+                        print(f"    predicted: {predicted[:10]}")
+                        print(f"    actual: {batch_labels[:10]}")
+                        print(f"    correct: {(predicted == batch_labels).sum().item()}/{batch_labels.size(0)}")
+                        print(f"    predicted unique: {torch.unique(predicted)}")
+                        print(f"    actual unique: {torch.unique(batch_labels)}")
+                        print(f"    integration_output shape: {integration_output.shape}")
+                        print(f"    integration_output max: {integration_output.max()}")
+                        print(f"    integration_output min: {integration_output.min()}")
+                        print(f"    integration_output mean: {integration_output.mean()}")
+                        print(f"    integration_output std: {integration_output.std()}")
+                        
+                        # Check if predictions are reasonable
+                        pred_counts = torch.bincount(predicted, minlength=self.num_classes)
+                        actual_counts = torch.bincount(batch_labels, minlength=self.num_classes)
+                        print(f"    predicted class counts: {pred_counts}")
+                        print(f"    actual class counts: {actual_counts}")
             
             accuracy = 100 * correct / total
             train_losses.append(epoch_loss / len(train_loader))

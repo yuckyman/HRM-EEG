@@ -734,7 +734,7 @@ def run_multiclass_bci_experiment():
     bci_dir = BCI_DATA_DIR / "dataset2a"
     
     if not bci_dir.exists():
-        print("❌ BCI data not found. Please run download_bci_dataset.py first.")
+        print("❌ BCI data not found. Please run utils/download_bci_dataset.py first.")
         return
     
     # Find GDF files
@@ -877,7 +877,7 @@ def quick_multiclass_test():
     gdf_files = list(bci_dir.glob("*.gdf"))
     
     if not gdf_files:
-        print("❌ No BCI files found. Please run download_bci_dataset.py first.")
+        print("❌ No BCI files found. Please run utils/download_bci_dataset.py first.")
         return
     
     print(f"Testing with {gdf_files[0].name}...")

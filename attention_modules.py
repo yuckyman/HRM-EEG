@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Tuple, Dict, List, Optional
 from pathlib import Path
-from einops import rearrange, repeat
+from einops import rearrange, repeat, reduce
 
 class TemporalAttention(nn.Module):
     """Temporal attention mechanism for EEG sequences."""
@@ -126,13 +126,19 @@ class CrossModalAttention(nn.Module):
         Apply cross-modal attention between fast and slow features.
         
         Args:
-            fast_features: Fast features of shape (batch_size, seq_len, fast_size)
-            slow_features: Slow features of shape (batch_size, seq_len, slow_size)
+            fast_features: Fast features of shape (batch_size, seq_len, fast_size) or (batch_size, fast_size)
+            slow_features: Slow features of shape (batch_size, seq_len, slow_size) or (batch_size, slow_size)
             
         Returns:
             attended: Cross-modal attended features
             attention_weights: Cross-modal attention weights
         """
+        # Handle both sequence and feature vector inputs
+        if fast_features.dim() == 2:
+            # Feature vectors: add sequence dimension
+            fast_features = fast_features.unsqueeze(1)  # (batch, 1, fast_size)
+            slow_features = slow_features.unsqueeze(1)  # (batch, 1, slow_size)
+        
         # Project slow features to fast feature space
         slow_projected = self.slow_projection(slow_features)
         fast_projected = self.fast_projection(fast_features)
@@ -182,17 +188,26 @@ class AttentionFastRNN(nn.Module):
             x: Input sequences of shape (batch_size, seq_len, input_size)
             
         Returns:
-            output: Classification logits of shape (batch_size, num_classes)
+            features: Feature vectors of shape (batch_size, hidden_size)
             attention_weights: Temporal attention weights
         """
+        # Use einops to handle dimensions properly
+        # x: (batch_size, seq_len, input_size) or (batch_size, input_size)
+        if x.dim() == 2:
+            # Single feature vector per sample, add sequence dimension
+            x = x.unsqueeze(1)  # (batch, 1, input_size)
+        
+        batch_size, seq_len, input_size = x.shape
+        
         # LSTM processing
         lstm_out, _ = self.lstm(x)  # (batch, seq_len, hidden_size)
         
         # Apply temporal attention
         attended, attention_weights = self.temporal_attention(lstm_out)
         
-        # Global average pooling over time
-        pooled = attended.mean(dim=1)  # (batch, hidden_size)
+        # Global average pooling over time using einops
+        # attended: (batch, seq_len, hidden_size) -> (batch, hidden_size)
+        pooled = reduce(attended, 'b s h -> b h', 'mean')
         pooled = self.dropout(pooled)
         
         # Return features directly
@@ -233,17 +248,22 @@ class AttentionSlowRNN(nn.Module):
             x: Input sequences of shape (batch_size, seq_len, input_size)
             
         Returns:
-            output: Classification logits of shape (batch_size, num_classes)
+            features: Feature vectors of shape (batch_size, hidden_size)
             attention_weights: Temporal attention weights
         """
+        # Handle both sequence and feature vector inputs
+        if x.dim() == 2:
+            # Single feature vector per sample, add sequence dimension
+            x = x.unsqueeze(1)  # (batch, 1, input_size)
+        
         # LSTM processing
         lstm_out, _ = self.lstm(x)  # (batch, seq_len, hidden_size)
         
         # Apply temporal attention
         attended, attention_weights = self.temporal_attention(lstm_out)
         
-        # Global average pooling over time
-        pooled = attended.mean(dim=1)  # (batch, hidden_size)
+        # Global average pooling over time using einops
+        pooled = reduce(attended, 'b s h -> b h', 'mean')
         pooled = self.dropout(pooled)
         
         # Return features directly
@@ -271,7 +291,7 @@ class AttentionIntegrationNet(nn.Module):
             nn.Linear(hidden_size // 2, num_classes)
         )
         
-        # Cross-modal attention for sequence-level integration
+        # Cross-modal attention for feature-level integration
         self.cross_attention = CrossModalAttention(
             fast_size=fast_size,
             slow_size=slow_size,
@@ -291,18 +311,18 @@ class AttentionIntegrationNet(nn.Module):
             output: Classification logits of shape (batch_size, num_classes)
             attention_weights: Cross-modal attention weights
         """
-        # For now, use simple concatenation to avoid dimension issues
-        # We'll add cross-modal attention back once we have proper sequence data
+        # Apply cross-modal attention between features
+        attended_fast, attention_weights = self.cross_attention(fast_features, slow_features)
         
-        # Concatenate features directly
-        combined = torch.cat([fast_features, slow_features], dim=1)
+        # Remove sequence dimension if it was added
+        if attended_fast.dim() == 3:
+            attended_fast = attended_fast.squeeze(1)  # (batch, fast_size)
+        
+        # Concatenate attended fast features with slow features
+        combined = torch.cat([attended_fast, slow_features], dim=1)
         
         # Final classification
         output = self.integration(combined)
-        
-        # Create dummy attention weights for compatibility
-        batch_size = fast_features.shape[0]
-        attention_weights = torch.eye(1).unsqueeze(0).repeat(batch_size, 1, 1)
         
         return output, attention_weights
 

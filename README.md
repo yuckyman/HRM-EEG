@@ -19,6 +19,12 @@ uv sync
 
 # Run the main experiment
 python eeg_hierarchical_processor.py
+
+# Or run with attention mechanisms
+python attention_hierarchical_processor.py
+
+# Or run BCI Competition experiments
+python run_bci_experiment.py
 ```
 
 ## Requirements
@@ -50,11 +56,25 @@ The script's main goal is to build and compare different machine learning models
 ```
 python/
 ├── eeg_hierarchical_processor.py    # Main experiment script
-├── eeg_sim.py                       # EEG simulation utilities
-├── hrm_sim-demo.py                  # Demo script for HRM models
+├── attention_hierarchical_processor.py  # Attention-based processing
+├── attention_modules.py              # Attention mechanism implementations
+├── run_bci_experiment.py            # BCI Competition experiments
+├── config.py                        # Configuration management
+├── utils/                           # Utility functions
+│   ├── download_bci_dataset.py      # BCI data downloader
+│   ├── download_all_datasets.py     # Batch dataset downloader
+│   └── explore_bci_data.py         # Data exploration utilities
+├── debug/                           # Debugging scripts
+│   ├── debug_attention.py           # Attention model debugging
+│   └── debug_attention_processed.py # Processed data debugging
+├── tests/                           # Test scripts
+│   ├── test_attention.py            # Attention module tests
+│   └── test_organization.py         # Project structure tests
+├── archive/                         # Legacy/older versions
+│   ├── eeg_sim.py                   # Simple EEG simulation
+│   ├── hrm_sim-demo.py              # Demo script
+│   └── public-eeg-datasets.md       # Dataset documentation
 ├── hierarchical_eeg_progress.md     # Development notes
-├── public-eeg-datasets.md           # Dataset documentation
-├── model_comparison_results.json    # Experiment results
 ├── pyproject.toml                   # Project configuration
 ├── requirements.txt                  # Python dependencies
 └── README.md                        # This file

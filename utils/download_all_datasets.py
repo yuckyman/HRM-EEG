@@ -6,7 +6,7 @@ This script downloads all available datasets for comprehensive testing
 
 import sys
 from pathlib import Path
-from download_bci_dataset import BCI_DATASETS, download_bci_dataset
+from .download_bci_dataset import BCI_DATASETS, download_bci_dataset
 
 def download_all_datasets():
     """Download all available BCI Competition IV datasets."""
