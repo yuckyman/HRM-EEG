@@ -1,0 +1,19 @@
+{
+  "subject_id": "A05E",
+  "data_info": {
+    "num_trials": 15,
+    "num_samples": 14820,
+    "num_classes": 4,
+    "label_distribution": [
+      11856,
+      988,
+      988,
+      988
+    ]
+  },
+  "non_attention": null,
+  "attention": {
+    "accuracy": 80.05399932500843,
+    "attention_analysis": {
+      "fast": {
+        "class_0": 

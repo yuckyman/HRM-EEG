@@ -81,7 +81,7 @@ def load_bci_data(filepath):
             'raw': raw,
             'events': events,
             'event_dict': event_dict,
-            'filename': filepath.name,
+            'filename': Path(filepath).name,
             'sampling_rate': raw.info['sfreq']
         }
         
